@@ -4,4 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-sdl3.workspace = true
+render-vulkan.workspace = true
+
+anyhow.workspace = true
+glam.workspace = true
+raw-window-handle = { workspace = true, features = ["std"] }
+sdl3 = { workspace = true, features = [
+    "build-from-source-static",
+    "raw-window-handle",
+] }

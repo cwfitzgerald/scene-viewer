@@ -5,6 +5,5 @@ edition = "2024"
 default-run = "build-tool"
 
 [dependencies]
-anyhow.workspace = true
 indicatif.workspace = true
 rayon.workspace = true

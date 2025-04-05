@@ -3,11 +3,14 @@ members = ["crates/*", "tools/*"]
 resolver = "3"
 
 [workspace.dependencies]
-render-common = { path = "../render-common" }
-render-vulkan = { path = "../render-vulkan" }
+render-common = { path = "crates/render-common" }
+render-vulkan = { path = "crates/render-vulkan" }
 
 anyhow = "1"
 ash = "0.38"
-sdl3 = "0.14"
+ash-window = "0.13"
+glam = "0.30"
 indicatif = "0.17.11"
+raw-window-handle = "0.6"
 rayon = "1"
+sdl3 = "0.14"
