@@ -6,5 +6,8 @@ resolver = "3"
 render-common = { path = "../render-common" }
 render-vulkan = { path = "../render-vulkan" }
 
+anyhow = "1"
 ash = "0.38"
 sdl3 = "0.14"
+indicatif = "0.17.11"
+rayon = "1"
