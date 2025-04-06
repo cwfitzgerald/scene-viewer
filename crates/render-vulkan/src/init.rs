@@ -123,7 +123,7 @@ impl VulkanRenderer {
                 .fragment_stores_and_atomics(true)
                 .sampler_anisotropy(true);
 
-            let features = vk::PhysicalDeviceFeatures2::default()
+            let mut features = vk::PhysicalDeviceFeatures2::default()
                 .features(vk_10_features)
                 .push_next(&mut vk_11_features)
                 .push_next(&mut vk_12_features)
@@ -137,8 +137,8 @@ impl VulkanRenderer {
 
             let device_create_info = vk::DeviceCreateInfo::default()
                 .queue_create_infos(std::slice::from_ref(&queue_info))
-                .enabled_features(&features.features)
-                .enabled_extension_names(&extension_names);
+                .enabled_extension_names(&extension_names)
+                .push_next(&mut features);
 
             let device = instance
                 .create_device(physical, &device_create_info, None)
@@ -174,6 +174,17 @@ impl VulkanRenderer {
                 )
                 .context("Failed to allocate command buffers")?;
 
+            let timeline_semaphore = device
+                .create_semaphore(
+                    &vk::SemaphoreCreateInfo::default().push_next(
+                        &mut vk::SemaphoreTypeCreateInfo::default()
+                            .semaphore_type(vk::SemaphoreType::TIMELINE)
+                            .initial_value(0),
+                    ),
+                    None,
+                )
+                .context("Failed to create timeline semaphore")?;
+
             let frames = std::array::from_fn(|i| FrameData {
                 command_buffer: command_encoders[i],
             });
@@ -186,7 +197,10 @@ impl VulkanRenderer {
                 swapchain,
 
                 command_pool,
+                timeline_semaphore,
                 frames,
+
+                current_frame: 0,
             })
         }
     }

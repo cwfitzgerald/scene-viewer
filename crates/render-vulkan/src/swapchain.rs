@@ -5,8 +5,8 @@ use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
 #[derive(Clone, Copy)]
 pub struct SwapchainSemaphores {
-    acquire: vk::Semaphore,
-    present: vk::Semaphore,
+    pub acquire: vk::Semaphore,
+    pub present: vk::Semaphore,
 }
 
 struct PerImageData {
