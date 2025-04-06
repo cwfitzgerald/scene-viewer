@@ -6,10 +6,18 @@ use std::{
 
 use indicatif::{ProgressBar, ProgressStyle};
 
-const SHADER_LIST: &[ShaderDecl] = &[ShaderDecl {
-    path: "test.slang",
-    entry_point: "main",
-}];
+const SHADER_LIST: &[ShaderDecl] = &[
+    ShaderDecl {
+        path: "triangle.slang",
+        entry_point: "vert_main",
+        output: "triangle.vert.spv",
+    },
+    ShaderDecl {
+        path: "triangle.slang",
+        entry_point: "frag_main",
+        output: "triangle.frag.spv",
+    },
+];
 
 const SHADER_SOURCE_DIRECTORY: &str = "crates/render-common/shaders";
 const VULKAN_BUILT_SHADER_DIRECTORY: &str = "crates/render-vulkan/shaders";
@@ -26,14 +34,13 @@ static EXE_MODIFICATION_TIME: LazyLock<SystemTime> = LazyLock::new(|| {
 struct ShaderDecl {
     path: &'static str,
     entry_point: &'static str,
+    output: &'static str,
 }
 
 impl ShaderDecl {
     fn task(&self) -> Option<Task> {
-        let output_filename = self.path.replace(".slang", ".spv");
-
         let input_path = format!("{SHADER_SOURCE_DIRECTORY}/{}", self.path);
-        let output_path = format!("{VULKAN_BUILT_SHADER_DIRECTORY}/{output_filename}");
+        let output_path = format!("{VULKAN_BUILT_SHADER_DIRECTORY}/{}", self.output);
 
         let command = String::from("slangc");
         let args = vec![

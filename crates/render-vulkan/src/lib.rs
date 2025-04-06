@@ -5,6 +5,7 @@ use ash::vk;
 use render_common::Renderer;
 
 mod init;
+mod mesh;
 mod raii;
 mod swapchain;
 
