@@ -68,7 +68,7 @@ impl NativeSwapchain {
         }
     }
 
-    fn configure(&mut self, device: &ash::Device, resolution: UVec2) -> anyhow::Result<()> {
+    unsafe fn configure(&mut self, device: &ash::Device, resolution: UVec2) -> anyhow::Result<()> {
         unsafe {
             println!("Configuring swapchain with resolution: {:?}", resolution);
 
@@ -137,7 +137,7 @@ impl NativeSwapchain {
         }
     }
 
-    fn unconfigure(&mut self, device: &ash::Device) {
+    unsafe fn unconfigure(&mut self, device: &ash::Device) {
         unsafe {
             for data in self.image_data.drain(..) {
                 device.destroy_image_view(data.view, None);
@@ -151,15 +151,24 @@ impl NativeSwapchain {
         }
     }
 
-    pub fn resize(&mut self, device: &ash::Device, resolution: UVec2) -> anyhow::Result<()> {
-        self.unconfigure(device);
-        self.configure(device, resolution)?;
+    /// # Safety
+    ///
+    /// - Device must be idle.
+    pub unsafe fn resize(&mut self, device: &ash::Device, resolution: UVec2) -> anyhow::Result<()> {
+        unsafe {
+            self.unconfigure(device);
+            self.configure(device, resolution)?
+        }
+
+        self.current_image = 0;
 
         Ok(())
     }
 
-    pub fn acquire(&mut self) -> anyhow::Result<(vk::ImageView, SwapchainSemaphores)> {
+    pub fn acquire(&mut self) -> anyhow::Result<(vk::Image, vk::ImageView, SwapchainSemaphores)> {
         unsafe {
+            println!("Acquiring swapchain image for index {}", self.current_image);
+
             let data = &self.image_data[self.current_image as usize];
 
             let (index, _suboptimal) = self
@@ -172,15 +181,22 @@ impl NativeSwapchain {
                 )
                 .context("Failed to acquire next image from swapchain")?;
 
+            println!("Received swapchain image index {}", index);
+
             assert_eq!(index, self.current_image);
 
-            Ok((data.view, data.semaphores))
+            Ok((data.image, data.view, data.semaphores))
         }
     }
 
     pub fn present(&mut self, queue: vk::Queue) -> anyhow::Result<()> {
         unsafe {
             let data = &self.image_data[self.current_image as usize];
+
+            println!(
+                "Presenting swapchain image for index {}",
+                self.current_image
+            );
 
             let present_info = vk::PresentInfoKHR::default()
                 .swapchains(std::slice::from_ref(&self.swapchain))

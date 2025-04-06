@@ -1,7 +1,7 @@
 use std::{mem::ManuallyDrop, sync::Arc};
 
 use anyhow::Context;
-use ash::{khr::surface, vk};
+use ash::vk;
 use render_common::Renderer;
 
 mod init;
@@ -33,19 +33,36 @@ pub struct VulkanRenderer {
     timeline_semaphore: vk::Semaphore,
     frames: [FrameData; FRAMES_IN_FLIGHT],
 
+    resolution: glam::UVec2,
     current_frame: u64,
 }
 
 impl Renderer for VulkanRenderer {
     fn resize(&mut self, resolution: glam::UVec2) -> anyhow::Result<()> {
-        self.swapchain.resize(&self.shared.device, resolution)
+        unsafe {
+            self.resolution = resolution;
+
+            self.shared
+                .device
+                .device_wait_idle()
+                .context("Failed to wait for device idle")?;
+
+            self.swapchain.resize(&self.shared.device, resolution)
+        }
     }
 
     fn render(&mut self) -> anyhow::Result<()> {
         unsafe {
-            let frame = &self.frames[self.current_frame as usize % FRAMES_IN_FLIGHT];
+            println!("Rendering frame {}", self.current_frame);
+
+            let frame_data_index = self.current_frame as usize % FRAMES_IN_FLIGHT;
+            println!("Frame data index: {}", frame_data_index);
+
+            let frame = &self.frames[frame_data_index];
 
             let frame_to_wait_for = self.current_frame.saturating_sub(2);
+
+            println!("Waiting for semaphore value {}", frame_to_wait_for);
 
             self.shared
                 .device
@@ -57,7 +74,7 @@ impl Renderer for VulkanRenderer {
                 )
                 .context("Failed to wait for timeline semaphore")?;
 
-            let (image_view, semaphores) = self.swapchain.acquire()?;
+            let (image, image_view, semaphores) = self.swapchain.acquire()?;
 
             self.shared.device.reset_command_buffer(
                 frame.command_buffer,
@@ -72,6 +89,77 @@ impl Renderer for VulkanRenderer {
                         .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT),
                 )
                 .context("Failed to begin command buffer")?;
+
+            self.shared.device.cmd_pipeline_barrier2(
+                frame.command_buffer,
+                &vk::DependencyInfo::default().image_memory_barriers(&[
+                    vk::ImageMemoryBarrier2::default()
+                        .src_stage_mask(vk::PipelineStageFlags2::ALL_COMMANDS)
+                        .src_access_mask(vk::AccessFlags2::NONE)
+                        .dst_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
+                        .dst_access_mask(vk::AccessFlags2::COLOR_ATTACHMENT_WRITE)
+                        .old_layout(vk::ImageLayout::UNDEFINED)
+                        .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+                        .image(image)
+                        .subresource_range(vk::ImageSubresourceRange {
+                            aspect_mask: vk::ImageAspectFlags::COLOR,
+                            base_mip_level: 0,
+                            level_count: 1,
+                            base_array_layer: 0,
+                            layer_count: 1,
+                        }),
+                ]),
+            );
+
+            let attachment = vk::RenderingAttachmentInfo::default()
+                .image_view(image_view)
+                .image_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+                .resolve_mode(vk::ResolveModeFlags::NONE)
+                .load_op(vk::AttachmentLoadOp::CLEAR)
+                .store_op(vk::AttachmentStoreOp::STORE)
+                .clear_value(vk::ClearValue {
+                    color: vk::ClearColorValue {
+                        float32: [1.0, 0.0, 0.0, 1.0],
+                    },
+                });
+
+            let rendering_info = vk::RenderingInfo::default()
+                .render_area(vk::Rect2D {
+                    offset: vk::Offset2D { x: 0, y: 0 },
+                    extent: vk::Extent2D {
+                        width: self.resolution.x,
+                        height: self.resolution.y,
+                    },
+                })
+                .layer_count(1)
+                .color_attachments(std::slice::from_ref(&attachment));
+
+            self.shared
+                .device
+                .cmd_begin_rendering(frame.command_buffer, &rendering_info);
+
+            self.shared.device.cmd_end_rendering(frame.command_buffer);
+
+            self.shared.device.cmd_pipeline_barrier2(
+                frame.command_buffer,
+                &vk::DependencyInfo::default().image_memory_barriers(&[
+                    vk::ImageMemoryBarrier2::default()
+                        .src_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
+                        .src_access_mask(vk::AccessFlags2::COLOR_ATTACHMENT_WRITE)
+                        .dst_stage_mask(vk::PipelineStageFlags2::TOP_OF_PIPE)
+                        .dst_access_mask(vk::AccessFlags2::NONE)
+                        .old_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+                        .new_layout(vk::ImageLayout::PRESENT_SRC_KHR)
+                        .image(image)
+                        .subresource_range(vk::ImageSubresourceRange {
+                            aspect_mask: vk::ImageAspectFlags::COLOR,
+                            base_mip_level: 0,
+                            level_count: 1,
+                            base_array_layer: 0,
+                            layer_count: 1,
+                        }),
+                ]),
+            );
 
             self.shared
                 .device
@@ -89,6 +177,7 @@ impl Renderer for VulkanRenderer {
                 .command_buffers(std::slice::from_ref(&frame.command_buffer))
                 .signal_semaphores(&signal_semaphores)
                 .wait_semaphores(std::slice::from_ref(&semaphores.acquire))
+                .wait_dst_stage_mask(&[vk::PipelineStageFlags::ALL_COMMANDS])
                 .push_next(&mut timeline_submit_info);
 
             self.shared
@@ -112,6 +201,8 @@ impl Renderer for VulkanRenderer {
 impl Drop for VulkanRenderer {
     fn drop(&mut self) {
         unsafe {
+            let _ = self.shared.device.device_wait_idle();
+
             for frame in &self.frames {
                 self.shared
                     .device

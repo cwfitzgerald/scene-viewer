@@ -200,7 +200,8 @@ impl VulkanRenderer {
                 timeline_semaphore,
                 frames,
 
-                current_frame: 0,
+                resolution,
+                current_frame: 1,
             })
         }
     }
