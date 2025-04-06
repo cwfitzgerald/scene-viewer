@@ -398,6 +398,10 @@ dependencies = [
 [[package]]
 name = "render-common"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "glam",
+]
 
 [[package]]
 name = "render-vulkan"
@@ -408,6 +412,7 @@ dependencies = [
  "ash-window",
  "glam",
  "raw-window-handle",
+ "render-common",
 ]
 
 [[package]]
@@ -423,6 +428,7 @@ dependencies = [
  "anyhow",
  "glam",
  "raw-window-handle",
+ "render-common",
  "render-vulkan",
  "sdl3",
 ]

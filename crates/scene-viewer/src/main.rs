@@ -1,7 +1,11 @@
 use anyhow::Context;
 use glam::UVec2;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
-use sdl3::{event::Event, keyboard::Keycode};
+use render_common::Renderer;
+use sdl3::{
+    event::{Event, WindowEvent},
+    keyboard::Keycode,
+};
 
 fn main() -> anyhow::Result<()> {
     let sdl_ctx = sdl3::init().context("Failed to initialize SDL3")?;
@@ -11,6 +15,7 @@ fn main() -> anyhow::Result<()> {
         .window("Scene Viewer", 2560, 1440)
         .vulkan()
         .high_pixel_density()
+        .resizable()
         .build()
         .context("Failed to create SDL3 window")?;
 
@@ -23,7 +28,7 @@ fn main() -> anyhow::Result<()> {
 
     let size = UVec2::from(window.size_in_pixels());
 
-    let renderer =
+    let mut renderer =
         render_vulkan::VulkanRenderer::new(display_handle.as_raw(), window_handle.as_raw(), size)
             .context("Failed to create Vulkan renderer")?;
 
@@ -39,6 +44,10 @@ fn main() -> anyhow::Result<()> {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => break 'running,
+                Event::Window {
+                    win_event: WindowEvent::Resized(x, y),
+                    ..
+                } => renderer.resize(UVec2::new(x as u32, y as u32)).unwrap(),
                 _ => {}
             }
         }

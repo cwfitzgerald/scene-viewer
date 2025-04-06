@@ -1,14 +1,11 @@
 use std::{mem::ManuallyDrop, sync::Arc};
 
 use anyhow::Context;
-use ash::{
-    khr::{surface, swapchain},
-    vk,
-};
+use ash::{khr, vk};
 use glam::UVec2;
 use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
-use crate::{DeviceShared, VulkanRenderer};
+use crate::{DeviceShared, FRAMES_IN_FLIGHT, FrameData, VulkanRenderer, swapchain};
 
 impl VulkanRenderer {
     pub fn new(
@@ -36,12 +33,6 @@ impl VulkanRenderer {
             let instance = entry
                 .create_instance(&instance_create_info, None)
                 .context("Failed to create Vulkan instance")?;
-
-            let surface_fn = surface::Instance::new(&entry, &instance);
-
-            let surface =
-                ash_window::create_surface(&entry, &instance, display_handle, window_handle, None)
-                    .context("Failed to create Vulkan surface")?;
 
             let devices = instance
                 .enumerate_physical_devices()
@@ -119,7 +110,8 @@ impl VulkanRenderer {
                 .descriptor_binding_sampled_image_update_after_bind(true)
                 .descriptor_binding_storage_image_update_after_bind(true)
                 .runtime_descriptor_array(true)
-                .shader_float16(true);
+                .shader_float16(true)
+                .timeline_semaphore(true);
 
             let mut vk_11_features =
                 vk::PhysicalDeviceVulkan11Features::default().shader_draw_parameters(true);
@@ -137,7 +129,7 @@ impl VulkanRenderer {
                 .push_next(&mut vk_12_features)
                 .push_next(&mut vk_13_features);
 
-            let extension_names = [swapchain::NAME.as_ptr()];
+            let extension_names = [khr::swapchain::NAME.as_ptr()];
 
             let queue_info = vk::DeviceQueueCreateInfo::default()
                 .queue_family_index(graphics_queue_family_index)
@@ -154,37 +146,47 @@ impl VulkanRenderer {
 
             let queue = device.get_device_queue(graphics_queue_family_index, 0);
 
-            let swapchain_fn = swapchain::Device::new(&instance, &device);
+            let swapchain = swapchain::NativeSwapchain::new(
+                &entry,
+                &instance,
+                &device,
+                display_handle,
+                window_handle,
+                resolution,
+            )
+            .context("Failed to create swapchain")?;
 
-            let swapchain_create_info = vk::SwapchainCreateInfoKHR::default()
-                .surface(surface)
-                .min_image_count(3)
-                .image_color_space(vk::ColorSpaceKHR::SRGB_NONLINEAR)
-                .image_format(vk::Format::R8G8B8A8_UNORM)
-                .image_extent(vk::Extent2D {
-                    width: resolution.x,
-                    height: resolution.y,
-                })
-                .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
-                .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
-                .pre_transform(vk::SurfaceTransformFlagsKHR::IDENTITY)
-                .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
-                .present_mode(vk::PresentModeKHR::FIFO)
-                .clipped(true)
-                .image_array_layers(1);
+            let command_pool = device
+                .create_command_pool(
+                    &vk::CommandPoolCreateInfo::default()
+                        .queue_family_index(graphics_queue_family_index)
+                        .flags(vk::CommandPoolCreateFlags::TRANSIENT),
+                    None,
+                )
+                .context("Failed to create command pool")?;
 
-            let swapchain = swapchain_fn
-                .create_swapchain(&swapchain_create_info, None)
-                .context("Failed to create Vulkan swapchain")?;
+            let command_encoders = device
+                .allocate_command_buffers(
+                    &vk::CommandBufferAllocateInfo::default()
+                        .command_pool(command_pool)
+                        .level(vk::CommandBufferLevel::PRIMARY)
+                        .command_buffer_count(FRAMES_IN_FLIGHT as u32),
+                )
+                .context("Failed to allocate command buffers")?;
+
+            let frames = std::array::from_fn(|i| FrameData {
+                command_buffer: command_encoders[i],
+            });
 
             Ok(VulkanRenderer {
                 _entry: entry,
                 instance,
-                surface_fn,
-                surface,
-                swapchain_fn,
-                swapchain,
                 shared: ManuallyDrop::new(Arc::new(DeviceShared { device, queue })),
+
+                swapchain,
+
+                command_pool,
+                frames,
             })
         }
     }
