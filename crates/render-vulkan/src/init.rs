@@ -160,7 +160,7 @@ impl VulkanRenderer {
                 .create_command_pool(
                     &vk::CommandPoolCreateInfo::default()
                         .queue_family_index(graphics_queue_family_index)
-                        .flags(vk::CommandPoolCreateFlags::TRANSIENT),
+                        .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER),
                     None,
                 )
                 .context("Failed to create command pool")?;

@@ -52,7 +52,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
 
-        // Render your scene here
+        renderer.render().context("Failed to render")?;
     }
 
     drop(renderer);
