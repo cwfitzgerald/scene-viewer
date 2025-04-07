@@ -34,6 +34,8 @@ pub struct VulkanRenderer {
     timeline_semaphore: vk::Semaphore,
     frames: [FrameData; FRAMES_IN_FLIGHT],
 
+    mesh_renderer: mesh::MeshRenderer,
+
     resolution: glam::UVec2,
     current_frame: u64,
 }
@@ -139,6 +141,41 @@ impl Renderer for VulkanRenderer {
                 .device
                 .cmd_begin_rendering(frame.command_buffer, &rendering_info);
 
+            self.shared.device.cmd_set_viewport(
+                frame.command_buffer,
+                0,
+                &[vk::Viewport {
+                    x: 0.0,
+                    y: self.resolution.y as f32,
+                    width: self.resolution.x as f32,
+                    height: -(self.resolution.y as f32),
+                    min_depth: 0.0,
+                    max_depth: 1.0,
+                }],
+            );
+
+            self.shared.device.cmd_set_scissor(
+                frame.command_buffer,
+                0,
+                &[vk::Rect2D {
+                    offset: vk::Offset2D { x: 0, y: 0 },
+                    extent: vk::Extent2D {
+                        width: self.resolution.x,
+                        height: self.resolution.y,
+                    },
+                }],
+            );
+
+            self.shared.device.cmd_bind_pipeline(
+                frame.command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                self.mesh_renderer.pipeline,
+            );
+
+            self.shared
+                .device
+                .cmd_draw(frame.command_buffer, 3, 1, 0, 0);
+
             self.shared.device.cmd_end_rendering(frame.command_buffer);
 
             self.shared.device.cmd_pipeline_barrier2(
@@ -213,6 +250,8 @@ impl Drop for VulkanRenderer {
             self.shared
                 .device
                 .destroy_command_pool(self.command_pool, None);
+
+            self.mesh_renderer.destroy(&self.shared);
 
             self.swapchain.dispose(&self.shared.device);
 

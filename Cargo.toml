@@ -9,6 +9,7 @@ render-vulkan = { path = "crates/render-vulkan" }
 anyhow = "1"
 ash = "0.38"
 ash-window = "0.13"
+bytemuck = "1.22"
 glam = "0.30"
 indicatif = "0.17.11"
 raw-window-handle = "0.6"

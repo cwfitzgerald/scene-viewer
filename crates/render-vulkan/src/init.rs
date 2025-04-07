@@ -5,7 +5,9 @@ use ash::{khr, vk};
 use glam::UVec2;
 use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
-use crate::{DeviceShared, FRAMES_IN_FLIGHT, FrameData, VulkanRenderer, swapchain};
+use crate::{
+    DeviceShared, FRAMES_IN_FLIGHT, FrameData, VulkanRenderer, mesh::MeshRenderer, swapchain,
+};
 
 impl VulkanRenderer {
     pub fn new(
@@ -189,16 +191,22 @@ impl VulkanRenderer {
                 command_buffer: command_encoders[i],
             });
 
+            let shared = ManuallyDrop::new(Arc::new(DeviceShared { device, queue }));
+
+            let mesh_renderer = MeshRenderer::new(&shared).unwrap();
+
             Ok(VulkanRenderer {
                 _entry: entry,
                 instance,
-                shared: ManuallyDrop::new(Arc::new(DeviceShared { device, queue })),
+                shared,
 
                 swapchain,
 
                 command_pool,
                 timeline_semaphore,
                 frames,
+
+                mesh_renderer,
 
                 resolution,
                 current_frame: 1,
