@@ -117,6 +117,8 @@ impl Task {
 }
 
 fn main() {
+    let remaining_args = std::env::args().skip(1).collect::<Vec<_>>();
+
     let mut shader_tasks = Vec::new();
     for shader in SHADER_LIST {
         shader_tasks.extend(shader.task());
@@ -148,6 +150,7 @@ fn main() {
         .arg("run")
         .arg("--package")
         .arg("scene-viewer")
+        .args(remaining_args)
         .status()
         .expect("Failed to run cargo");
 

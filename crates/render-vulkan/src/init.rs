@@ -3,10 +3,12 @@ use std::{mem::ManuallyDrop, sync::Arc};
 use anyhow::Context;
 use ash::{khr, vk};
 use glam::UVec2;
+use gpu_allocator::MemoryLocation;
 use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
 use crate::{
-    DeviceShared, FRAMES_IN_FLIGHT, FrameData, VulkanRenderer, mesh::MeshRenderer, swapchain,
+    DeviceShared, FRAMES_IN_FLIGHT, FrameData, MESH_DATA_BUFFER, VulkanRenderer, allocation,
+    mesh::MeshRenderer, swapchain,
 };
 
 impl VulkanRenderer {
@@ -148,6 +150,10 @@ impl VulkanRenderer {
 
             let queue = device.get_device_queue(graphics_queue_family_index, 0);
 
+            let allocator =
+                allocation::GpuMemoryAllocator::new(instance.clone(), physical, device.clone())
+                    .context("Failed to create GPU memory allocator")?;
+
             let swapchain = swapchain::NativeSwapchain::new(
                 &entry,
                 &instance,
@@ -191,7 +197,23 @@ impl VulkanRenderer {
                 command_buffer: command_encoders[i],
             });
 
-            let shared = ManuallyDrop::new(Arc::new(DeviceShared { device, queue }));
+            let shared = ManuallyDrop::new(Arc::new(DeviceShared {
+                device,
+                queue,
+                allocator,
+            }));
+
+            let mesh_data_buffer = shared
+                .allocator
+                .allocate_buffer(
+                    &shared.device,
+                    "test buffer",
+                    MESH_DATA_BUFFER,
+                    vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS
+                        | vk::BufferUsageFlags::INDEX_BUFFER,
+                    MemoryLocation::GpuOnly,
+                )
+                .context("Failed to allocate test buffer")?;
 
             let mesh_renderer = MeshRenderer::new(&shared).unwrap();
 
@@ -207,6 +229,8 @@ impl VulkanRenderer {
                 frames,
 
                 mesh_renderer,
+
+                mesh_data_buffer,
 
                 resolution,
                 current_frame: 1,

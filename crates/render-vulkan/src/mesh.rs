@@ -21,19 +21,19 @@ impl MeshRenderer {
                 )
                 .context("Failed to create pipeline layout")?;
 
-            let vertex: &[u32] =
-                bytemuck::cast_slice(include_bytes!("../shaders/triangle.vert.spv"));
-            let fragment: &[u32] =
-                bytemuck::cast_slice(include_bytes!("../shaders/triangle.frag.spv"));
+            let vertex: Vec<u32> =
+                bytemuck::pod_collect_to_vec(include_bytes!("../shaders/triangle.vert.spv"));
+            let fragment: Vec<u32> =
+                bytemuck::pod_collect_to_vec(include_bytes!("../shaders/triangle.frag.spv"));
 
             let vertex_shader_module = shared
                 .device
-                .create_shader_module(&vk::ShaderModuleCreateInfo::default().code(vertex), None)
+                .create_shader_module(&vk::ShaderModuleCreateInfo::default().code(&vertex), None)
                 .context("Failed to create vertex shader module")?;
 
             let fragment_shader_module = shared
                 .device
-                .create_shader_module(&vk::ShaderModuleCreateInfo::default().code(fragment), None)
+                .create_shader_module(&vk::ShaderModuleCreateInfo::default().code(&fragment), None)
                 .context("Failed to create fragment shader module")?;
 
             let vertex_shader_stage = vk::PipelineShaderStageCreateInfo::default()
@@ -115,7 +115,7 @@ impl MeshRenderer {
         }
     }
 
-    pub fn destroy(&self, shared: &DeviceShared) {
+    pub fn dispose(&self, shared: &DeviceShared) {
         unsafe {
             shared.device.destroy_pipeline(self.pipeline, None);
             shared

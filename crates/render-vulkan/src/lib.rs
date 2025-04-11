@@ -4,6 +4,7 @@ use anyhow::Context;
 use ash::vk;
 use render_common::Renderer;
 
+mod allocation;
 mod init;
 mod mesh;
 mod raii;
@@ -12,6 +13,8 @@ mod swapchain;
 const FRAMES_IN_FLIGHT: usize = 2;
 const NANOSECONDS_PER_SECOND: u64 = 1_000_000_000;
 
+const MESH_DATA_BUFFER: u64 = 8 * 1024 * 1024; // 8 MB
+
 struct FrameData {
     command_buffer: vk::CommandBuffer,
 }
@@ -19,6 +22,7 @@ struct FrameData {
 pub struct DeviceShared {
     device: ash::Device,
     queue: vk::Queue,
+    allocator: allocation::GpuMemoryAllocator,
 }
 
 pub struct VulkanRenderer {
@@ -35,6 +39,8 @@ pub struct VulkanRenderer {
     frames: [FrameData; FRAMES_IN_FLIGHT],
 
     mesh_renderer: mesh::MeshRenderer,
+
+    mesh_data_buffer: allocation::AllocatedBuffer,
 
     resolution: glam::UVec2,
     current_frame: u64,
@@ -234,10 +240,8 @@ impl Renderer for VulkanRenderer {
             Ok(())
         }
     }
-}
 
-impl Drop for VulkanRenderer {
-    fn drop(&mut self) {
+    fn dispose(mut self) {
         unsafe {
             let _ = self.shared.device.device_wait_idle();
 
@@ -251,7 +255,11 @@ impl Drop for VulkanRenderer {
                 .device
                 .destroy_command_pool(self.command_pool, None);
 
-            self.mesh_renderer.destroy(&self.shared);
+            self.shared
+                .allocator
+                .dispose_buffer(&self.shared.device, self.mesh_data_buffer);
+
+            self.mesh_renderer.dispose(&self.shared);
 
             self.swapchain.dispose(&self.shared.device);
 
