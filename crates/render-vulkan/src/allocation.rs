@@ -1,7 +1,6 @@
-use std::{ffi::c_void, ptr::NonNull};
-
 use anyhow::Context;
 use ash::vk;
+use bytemuck::Pod;
 use gpu_allocator::{
     AllocationSizes, AllocatorDebugSettings,
     vulkan::{Allocation, AllocationCreateDesc, AllocationScheme, Allocator, AllocatorCreateDesc},
@@ -15,21 +14,32 @@ pub struct AllocatedBuffer {
 }
 
 impl AllocatedBuffer {
-    fn mapped_slice(&self) -> &[u8] {
-        self.allocation
+    #[expect(dead_code)]
+    pub fn mapped_slice<T: Pod>(&self) -> &[T] {
+        let raw_slice = self
+            .allocation
             .mapped_slice()
-            .expect("Failed to get mapped slice")
+            .expect("Failed to get mapped slice");
+
+        bytemuck::cast_slice(raw_slice)
     }
 
-    fn mapped_slice_mut(&mut self) -> &mut [u8] {
-        self.allocation
+    pub fn mapped_slice_mut<T: Pod>(&mut self) -> &mut [T] {
+        let raw_slice = self
+            .allocation
             .mapped_slice_mut()
-            .expect("Failed to get mapped slice")
+            .expect("Failed to get mapped slice");
+
+        bytemuck::cast_slice_mut(raw_slice)
     }
 
-    fn device_address(&self) -> vk::DeviceAddress {
+    pub fn device_address(&self) -> vk::DeviceAddress {
         self.device_address
             .expect("Tried to get device address from non-device address capable buffer")
+    }
+
+    pub fn buffer(&self) -> vk::Buffer {
+        self.buffer
     }
 }
 

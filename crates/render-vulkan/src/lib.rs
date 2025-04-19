@@ -177,9 +177,24 @@ impl Renderer for VulkanRenderer {
                 self.mesh_renderer.pipeline,
             );
 
+            self.shared.device.cmd_push_constants(
+                frame.command_buffer,
+                self.mesh_renderer.pipeline_layout,
+                vk::ShaderStageFlags::VERTEX,
+                0,
+                bytemuck::bytes_of(&self.mesh_data_buffer.device_address()),
+            );
+
+            self.shared.device.cmd_bind_index_buffer(
+                frame.command_buffer,
+                self.mesh_data_buffer.buffer(),
+                0,
+                vk::IndexType::UINT32,
+            );
+
             self.shared
                 .device
-                .cmd_draw(frame.command_buffer, 3, 1, 0, 0);
+                .cmd_draw_indexed(frame.command_buffer, 3, 1, 6, 0, 0);
 
             self.shared.device.cmd_end_rendering(frame.command_buffer);
 

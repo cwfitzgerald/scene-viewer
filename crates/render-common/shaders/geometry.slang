@@ -1,6 +1,6 @@
 struct Vertex
 {
-    float3 position;
+    float2 position;
 }
 
 struct PushConstants
@@ -15,7 +15,7 @@ uniform PushConstants pc;
 float4 vert_main(uint id: SV_VertexID)
     : SV_Position
 {
-    return float4(pc.vertex_buffer[id].position, 1.0);
+    return float4(pc.vertex_buffer[id].position, 0.0, 1.0);
 }
 
 [shader("pixel")]

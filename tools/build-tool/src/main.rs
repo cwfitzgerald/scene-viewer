@@ -8,14 +8,14 @@ use indicatif::{ProgressBar, ProgressStyle};
 
 const SHADER_LIST: &[ShaderDecl] = &[
     ShaderDecl {
-        path: "triangle.slang",
+        path: "geometry.slang",
         entry_point: "vert_main",
-        output: "triangle.vert.spv",
+        output: "geometry.vert.spv",
     },
     ShaderDecl {
-        path: "triangle.slang",
+        path: "geometry.slang",
         entry_point: "frag_main",
-        output: "triangle.frag.spv",
+        output: "geometry.frag.spv",
     },
 ];
 

@@ -4,7 +4,7 @@ use ash::vk;
 use crate::DeviceShared;
 
 pub struct MeshRenderer {
-    pipeline_layout: vk::PipelineLayout,
+    pub pipeline_layout: vk::PipelineLayout,
     pub pipeline: vk::Pipeline,
 }
 
@@ -16,15 +16,18 @@ impl MeshRenderer {
                 .create_pipeline_layout(
                     &vk::PipelineLayoutCreateInfo::default()
                         .set_layouts(&[])
-                        .push_constant_ranges(&[]),
+                        .push_constant_ranges(&[vk::PushConstantRange::default()
+                            .stage_flags(vk::ShaderStageFlags::VERTEX)
+                            .offset(0)
+                            .size(std::mem::size_of::<vk::DeviceAddress>() as u32)]),
                     None,
                 )
                 .context("Failed to create pipeline layout")?;
 
             let vertex: Vec<u32> =
-                bytemuck::pod_collect_to_vec(include_bytes!("../shaders/triangle.vert.spv"));
+                bytemuck::pod_collect_to_vec(include_bytes!("../shaders/geometry.vert.spv"));
             let fragment: Vec<u32> =
-                bytemuck::pod_collect_to_vec(include_bytes!("../shaders/triangle.frag.spv"));
+                bytemuck::pod_collect_to_vec(include_bytes!("../shaders/geometry.frag.spv"));
 
             let vertex_shader_module = shared
                 .device
