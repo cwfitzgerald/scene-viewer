@@ -2,11 +2,14 @@ use std::{mem::ManuallyDrop, sync::Arc};
 
 use anyhow::Context;
 use ash::vk;
+use glam::Vec2;
 use render_common::Renderer;
 
 mod allocation;
 mod init;
-mod mesh;
+mod mesh_renderer;
+mod staging;
+mod suballocated_buffer;
 mod swapchain;
 
 const FRAMES_IN_FLIGHT: usize = 2;
@@ -37,9 +40,13 @@ pub struct VulkanRenderer {
     timeline_semaphore: vk::Semaphore,
     frames: [FrameData; FRAMES_IN_FLIGHT],
 
-    mesh_renderer: mesh::MeshRenderer,
+    mesh_renderer: mesh_renderer::MeshRenderer,
 
-    mesh_data_buffer: allocation::AllocatedBuffer,
+    mesh_data_buffer: suballocated_buffer::SuballocatedBuffer,
+    staging_belt: staging::StagingBelt,
+
+    vertex_allocation: Option<suballocated_buffer::BufferSuballocation>,
+    index_allocation: Option<suballocated_buffer::BufferSuballocation>,
 
     resolution: glam::UVec2,
     current_frame: u64,
@@ -63,6 +70,9 @@ impl Renderer for VulkanRenderer {
             let frame_data_index = self.current_frame as usize % FRAMES_IN_FLIGHT;
             println!("Frame data index: {}", frame_data_index);
 
+            self.staging_belt.start_frame(frame_data_index);
+            self.mesh_data_buffer.start_frame();
+
             let frame = &self.frames[frame_data_index];
 
             let frame_to_wait_for = self.current_frame.saturating_sub(2);
@@ -81,6 +91,21 @@ impl Renderer for VulkanRenderer {
 
             let (image, image_view, semaphores) = self.swapchain.acquire()?;
 
+            if self.current_frame == 1 {
+                let mesh_data = [Vec2::new(-1.0, -1.0), Vec2::new(1.0, -1.0), Vec2::new(0.0, 1.0)];
+
+                let index_data = [0, 1, 2];
+
+                self.vertex_allocation = Some(
+                    self.mesh_data_buffer
+                        .upload_data(&mut self.staging_belt, bytemuck::cast_slice(&mesh_data)),
+                );
+                self.index_allocation = Some(
+                    self.mesh_data_buffer
+                        .upload_data(&mut self.staging_belt, bytemuck::cast_slice(&index_data)),
+                );
+            }
+
             self.shared.device.reset_command_buffer(
                 frame.command_buffer,
                 vk::CommandBufferResetFlags::RELEASE_RESOURCES,
@@ -95,25 +120,51 @@ impl Renderer for VulkanRenderer {
                 )
                 .context("Failed to begin command buffer")?;
 
+            self.staging_belt.flush_copies(&self.shared, frame.command_buffer);
+
+            let mut buffer_barriers = Vec::new();
+            if self.mesh_data_buffer.data_uploaded_this_frame() {
+                buffer_barriers.push(
+                    vk::BufferMemoryBarrier2::default()
+                        .src_stage_mask(vk::PipelineStageFlags2::TRANSFER)
+                        .src_access_mask(vk::AccessFlags2::TRANSFER_WRITE)
+                        .dst_stage_mask(
+                            vk::PipelineStageFlags2::VERTEX_SHADER
+                                | vk::PipelineStageFlags2::INDEX_INPUT,
+                        )
+                        .dst_access_mask(
+                            vk::AccessFlags2::SHADER_STORAGE_READ | vk::AccessFlags2::INDEX_READ,
+                        )
+                        .buffer(self.mesh_data_buffer.buffer())
+                        .size(vk::WHOLE_SIZE)
+                        .offset(0),
+                );
+            }
+
+            let mut image_barriers = Vec::new();
+            image_barriers.push(
+                vk::ImageMemoryBarrier2::default()
+                    .src_stage_mask(vk::PipelineStageFlags2::ALL_COMMANDS)
+                    .src_access_mask(vk::AccessFlags2::NONE)
+                    .dst_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
+                    .dst_access_mask(vk::AccessFlags2::COLOR_ATTACHMENT_WRITE)
+                    .old_layout(vk::ImageLayout::UNDEFINED)
+                    .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+                    .image(image)
+                    .subresource_range(vk::ImageSubresourceRange {
+                        aspect_mask: vk::ImageAspectFlags::COLOR,
+                        base_mip_level: 0,
+                        level_count: 1,
+                        base_array_layer: 0,
+                        layer_count: 1,
+                    }),
+            );
+
             self.shared.device.cmd_pipeline_barrier2(
                 frame.command_buffer,
-                &vk::DependencyInfo::default().image_memory_barriers(&[
-                    vk::ImageMemoryBarrier2::default()
-                        .src_stage_mask(vk::PipelineStageFlags2::ALL_COMMANDS)
-                        .src_access_mask(vk::AccessFlags2::NONE)
-                        .dst_stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
-                        .dst_access_mask(vk::AccessFlags2::COLOR_ATTACHMENT_WRITE)
-                        .old_layout(vk::ImageLayout::UNDEFINED)
-                        .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-                        .image(image)
-                        .subresource_range(vk::ImageSubresourceRange {
-                            aspect_mask: vk::ImageAspectFlags::COLOR,
-                            base_mip_level: 0,
-                            level_count: 1,
-                            base_array_layer: 0,
-                            layer_count: 1,
-                        }),
-                ]),
+                &vk::DependencyInfo::default()
+                    .buffer_memory_barriers(&buffer_barriers)
+                    .image_memory_barriers(&image_barriers),
             );
 
             let attachment = vk::RenderingAttachmentInfo::default()
@@ -179,7 +230,14 @@ impl Renderer for VulkanRenderer {
                 vk::IndexType::UINT32,
             );
 
-            self.shared.device.cmd_draw_indexed(frame.command_buffer, 3, 1, 6, 0, 0);
+            self.shared.device.cmd_draw_indexed(
+                frame.command_buffer,
+                3,
+                1,
+                (self.index_allocation.as_ref().unwrap().offset / 4) as u32,
+                (self.vertex_allocation.as_ref().unwrap().offset / 8) as i32,
+                0,
+            );
 
             self.shared.device.cmd_end_rendering(frame.command_buffer);
 
@@ -250,7 +308,11 @@ impl Renderer for VulkanRenderer {
 
             self.shared.device.destroy_command_pool(self.command_pool, None);
 
-            self.shared.allocator.dispose_buffer(&self.shared.device, self.mesh_data_buffer);
+            self.mesh_data_buffer.dispose_suballocation(self.index_allocation.unwrap());
+            self.mesh_data_buffer.dispose_suballocation(self.vertex_allocation.unwrap());
+
+            self.mesh_data_buffer.dispose(&self.shared);
+            self.staging_belt.dispose(&self.shared);
 
             self.mesh_renderer.dispose(&self.shared);
 
@@ -260,6 +322,7 @@ impl Renderer for VulkanRenderer {
 
             let shared = ManuallyDrop::take(&mut self.shared);
             if let Some(shared) = Arc::into_inner(shared) {
+                shared.allocator.dispose();
                 shared.device.destroy_device(None);
             } else {
                 eprintln!("LEAK! Could not destroy device");

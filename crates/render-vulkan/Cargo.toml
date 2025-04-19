@@ -12,5 +12,6 @@ ash-window.workspace = true
 bytemuck = { workspace = true, features = ["extern_crate_alloc"] }
 glam = { workspace = true, features = ["bytemuck"] }
 gpu-allocator = { workspace = true, features = ["vulkan"] }
+offset-allocator.workspace = true
 parking_lot.workspace = true
 raw-window-handle.workspace = true

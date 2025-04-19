@@ -46,7 +46,7 @@ fn main() -> anyhow::Result<()> {
         renderer.render().context("Failed to render")?;
     }
 
-    drop(renderer);
+    renderer.dispose();
 
     Ok(())
 }

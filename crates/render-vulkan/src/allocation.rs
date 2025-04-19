@@ -14,6 +14,10 @@ pub struct AllocatedBuffer {
 }
 
 impl AllocatedBuffer {
+    pub fn size(&self) -> u64 {
+        self.allocation.size()
+    }
+
     #[expect(dead_code)]
     pub fn mapped_slice<T: Pod>(&self) -> &[T] {
         let raw_slice = self.allocation.mapped_slice().expect("Failed to get mapped slice");
@@ -118,5 +122,9 @@ impl GpuMemoryAllocator {
             device.destroy_buffer(buffer.buffer, None);
             self.allocator.lock().free(buffer.allocation).unwrap();
         }
+    }
+
+    pub fn dispose(self) {
+        drop(self.allocator);
     }
 }

@@ -15,6 +15,7 @@ gpu-allocator = { version = "0.27", default-features = false }
 indicatif = "0.17.11"
 parking_lot = "0.12"
 raw-window-handle = "0.6"
+offset-allocator = "0.2"
 rayon = "1"
 sdl3 = "0.14"
 

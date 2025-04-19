@@ -2,13 +2,14 @@ use std::{mem::ManuallyDrop, sync::Arc};
 
 use anyhow::Context;
 use ash::{khr, vk};
-use glam::{UVec2, Vec2};
+use glam::UVec2;
 use gpu_allocator::MemoryLocation;
 use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
 use crate::{
     DeviceShared, FRAMES_IN_FLIGHT, FrameData, MESH_DATA_BUFFER, VulkanRenderer, allocation,
-    mesh::MeshRenderer, swapchain,
+    mesh_renderer::MeshRenderer, staging::StagingBelt, suballocated_buffer::SuballocatedBuffer,
+    swapchain,
 };
 
 impl VulkanRenderer {
@@ -192,28 +193,22 @@ impl VulkanRenderer {
 
             let shared = ManuallyDrop::new(Arc::new(DeviceShared { device, queue, allocator }));
 
-            let mut mesh_data_buffer = shared
+            let staging_belt =
+                StagingBelt::new(&shared).context("Failed to create staging belt")?;
+
+            let mesh_data_buffer = shared
                 .allocator
                 .allocate_buffer(
                     &shared.device,
                     "test buffer",
                     MESH_DATA_BUFFER,
                     vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS
-                        | vk::BufferUsageFlags::INDEX_BUFFER,
+                        | vk::BufferUsageFlags::INDEX_BUFFER
+                        | vk::BufferUsageFlags::TRANSFER_DST,
                     MemoryLocation::CpuToGpu,
                 )
                 .context("Failed to allocate test buffer")?;
-
-            let vec2_buf = mesh_data_buffer.mapped_slice_mut::<Vec2>();
-
-            vec2_buf[0] = Vec2::new(-1.0, -1.0);
-            vec2_buf[1] = Vec2::new(1.0, -1.0);
-            vec2_buf[2] = Vec2::new(0.0, 1.0);
-
-            let index_buf = mesh_data_buffer.mapped_slice_mut::<u32>();
-            index_buf[6] = 0;
-            index_buf[7] = 1;
-            index_buf[8] = 2;
+            let mesh_data_buffer = SuballocatedBuffer::new(mesh_data_buffer);
 
             let mesh_renderer = MeshRenderer::new(&shared).unwrap();
 
@@ -231,6 +226,10 @@ impl VulkanRenderer {
                 mesh_renderer,
 
                 mesh_data_buffer,
+                staging_belt,
+
+                vertex_allocation: None,
+                index_allocation: None,
 
                 resolution,
                 current_frame: 1,
