@@ -16,19 +16,13 @@ pub struct AllocatedBuffer {
 impl AllocatedBuffer {
     #[expect(dead_code)]
     pub fn mapped_slice<T: Pod>(&self) -> &[T] {
-        let raw_slice = self
-            .allocation
-            .mapped_slice()
-            .expect("Failed to get mapped slice");
+        let raw_slice = self.allocation.mapped_slice().expect("Failed to get mapped slice");
 
         bytemuck::cast_slice(raw_slice)
     }
 
     pub fn mapped_slice_mut<T: Pod>(&mut self) -> &mut [T] {
-        let raw_slice = self
-            .allocation
-            .mapped_slice_mut()
-            .expect("Failed to get mapped slice");
+        let raw_slice = self.allocation.mapped_slice_mut().expect("Failed to get mapped slice");
 
         bytemuck::cast_slice_mut(raw_slice)
     }
@@ -62,9 +56,7 @@ impl GpuMemoryAllocator {
             allocation_sizes: AllocationSizes::default(),
         })?;
 
-        Ok(Self {
-            allocator: Mutex::new(allocator),
-        })
+        Ok(Self { allocator: Mutex::new(allocator) })
     }
 
     pub fn allocate_buffer(
@@ -117,11 +109,7 @@ impl GpuMemoryAllocator {
                 None
             };
 
-            Ok(AllocatedBuffer {
-                buffer,
-                allocation,
-                device_address,
-            })
+            Ok(AllocatedBuffer { buffer, allocation, device_address })
         }
     }
 

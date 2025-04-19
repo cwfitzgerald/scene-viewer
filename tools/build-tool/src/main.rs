@@ -7,29 +7,15 @@ use std::{
 use indicatif::{ProgressBar, ProgressStyle};
 
 const SHADER_LIST: &[ShaderDecl] = &[
-    ShaderDecl {
-        path: "geometry.slang",
-        entry_point: "vert_main",
-        output: "geometry.vert.spv",
-    },
-    ShaderDecl {
-        path: "geometry.slang",
-        entry_point: "frag_main",
-        output: "geometry.frag.spv",
-    },
+    ShaderDecl { path: "geometry.slang", entry_point: "vert_main", output: "geometry.vert.spv" },
+    ShaderDecl { path: "geometry.slang", entry_point: "frag_main", output: "geometry.frag.spv" },
 ];
 
 const SHADER_SOURCE_DIRECTORY: &str = "crates/render-common/shaders";
 const VULKAN_BUILT_SHADER_DIRECTORY: &str = "crates/render-vulkan/shaders";
 
-static EXE_MODIFICATION_TIME: LazyLock<SystemTime> = LazyLock::new(|| {
-    std::env::current_exe()
-        .unwrap()
-        .metadata()
-        .unwrap()
-        .modified()
-        .unwrap()
-});
+static EXE_MODIFICATION_TIME: LazyLock<SystemTime> =
+    LazyLock::new(|| std::env::current_exe().unwrap().metadata().unwrap().modified().unwrap());
 
 struct ShaderDecl {
     path: &'static str,
@@ -83,10 +69,7 @@ impl Task {
         };
 
         let output_modified = output_metadata.modified().unwrap_or_else(|_| {
-            panic!(
-                "Failed to get modified time for output file: {}",
-                output_file
-            )
+            panic!("Failed to get modified time for output file: {}", output_file)
         });
 
         if input_modified > output_modified || *EXE_MODIFICATION_TIME > output_modified {

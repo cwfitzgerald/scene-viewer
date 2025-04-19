@@ -74,12 +74,7 @@ impl VulkanRenderer {
 
                 println!(
                     "Found device {} ({:?})",
-                    properties
-                        .properties
-                        .device_name_as_c_str()
-                        .unwrap()
-                        .to_str()
-                        .unwrap(),
+                    properties.properties.device_name_as_c_str().unwrap().to_str().unwrap(),
                     properties.properties.device_type
                 );
 
@@ -193,15 +188,9 @@ impl VulkanRenderer {
                 )
                 .context("Failed to create timeline semaphore")?;
 
-            let frames = std::array::from_fn(|i| FrameData {
-                command_buffer: command_encoders[i],
-            });
+            let frames = std::array::from_fn(|i| FrameData { command_buffer: command_encoders[i] });
 
-            let shared = ManuallyDrop::new(Arc::new(DeviceShared {
-                device,
-                queue,
-                allocator,
-            }));
+            let shared = ManuallyDrop::new(Arc::new(DeviceShared { device, queue, allocator }));
 
             let mut mesh_data_buffer = shared
                 .allocator

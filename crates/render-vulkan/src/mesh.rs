@@ -14,12 +14,12 @@ impl MeshRenderer {
             let pipeline_layout = shared
                 .device
                 .create_pipeline_layout(
-                    &vk::PipelineLayoutCreateInfo::default()
-                        .set_layouts(&[])
-                        .push_constant_ranges(&[vk::PushConstantRange::default()
+                    &vk::PipelineLayoutCreateInfo::default().set_layouts(&[]).push_constant_ranges(
+                        &[vk::PushConstantRange::default()
                             .stage_flags(vk::ShaderStageFlags::VERTEX)
                             .offset(0)
-                            .size(std::mem::size_of::<vk::DeviceAddress>() as u32)]),
+                            .size(std::mem::size_of::<vk::DeviceAddress>() as u32)],
+                    ),
                     None,
                 )
                 .context("Failed to create pipeline layout")?;
@@ -55,9 +55,8 @@ impl MeshRenderer {
             let input_assembly_state = vk::PipelineInputAssemblyStateCreateInfo::default()
                 .topology(vk::PrimitiveTopology::TRIANGLE_LIST);
             let tessellation_state = vk::PipelineTessellationStateCreateInfo::default();
-            let viewport_state = vk::PipelineViewportStateCreateInfo::default()
-                .viewport_count(1)
-                .scissor_count(1);
+            let viewport_state =
+                vk::PipelineViewportStateCreateInfo::default().viewport_count(1).scissor_count(1);
             let pipeline_rasterization_state = vk::PipelineRasterizationStateCreateInfo::default()
                 .polygon_mode(vk::PolygonMode::FILL)
                 .cull_mode(vk::CullModeFlags::NONE)
@@ -104,26 +103,17 @@ impl MeshRenderer {
                 .map_err(|(_, e)| e)
                 .context("Failed to create mesh renderer pipeline")?[0];
 
-            shared
-                .device
-                .destroy_shader_module(vertex_shader_module, None);
-            shared
-                .device
-                .destroy_shader_module(fragment_shader_module, None);
+            shared.device.destroy_shader_module(vertex_shader_module, None);
+            shared.device.destroy_shader_module(fragment_shader_module, None);
 
-            Ok(Self {
-                pipeline_layout,
-                pipeline,
-            })
+            Ok(Self { pipeline_layout, pipeline })
         }
     }
 
     pub fn dispose(&self, shared: &DeviceShared) {
         unsafe {
             shared.device.destroy_pipeline(self.pipeline, None);
-            shared
-                .device
-                .destroy_pipeline_layout(self.pipeline_layout, None);
+            shared.device.destroy_pipeline_layout(self.pipeline_layout, None);
         }
     }
 }

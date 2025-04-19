@@ -77,10 +77,7 @@ impl NativeSwapchain {
                 .min_image_count(3)
                 .image_color_space(vk::ColorSpaceKHR::SRGB_NONLINEAR)
                 .image_format(self.format)
-                .image_extent(vk::Extent2D {
-                    width: resolution.x,
-                    height: resolution.y,
-                })
+                .image_extent(vk::Extent2D { width: resolution.x, height: resolution.y })
                 .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
                 .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
                 .pre_transform(vk::SurfaceTransformFlagsKHR::IDENTITY)
@@ -111,9 +108,8 @@ impl NativeSwapchain {
                         layer_count: 1,
                     })
                     .image(image);
-                let view = device
-                    .create_image_view(&create_view_info, None)
-                    .with_context(|| {
+                let view =
+                    device.create_image_view(&create_view_info, None).with_context(|| {
                         format!("Failed to create image view for swapchain image {}", idx)
                     })?;
 
@@ -126,11 +122,7 @@ impl NativeSwapchain {
                         .context("Failed to create present semaphore")?,
                 };
 
-                self.image_data.push(PerImageData {
-                    image,
-                    view,
-                    semaphores,
-                });
+                self.image_data.push(PerImageData { image, view, semaphores });
             }
 
             Ok(())
@@ -193,10 +185,7 @@ impl NativeSwapchain {
         unsafe {
             let data = &self.image_data[self.current_image as usize];
 
-            println!(
-                "Presenting swapchain image for index {}",
-                self.current_image
-            );
+            println!("Presenting swapchain image for index {}", self.current_image);
 
             let present_info = vk::PresentInfoKHR::default()
                 .swapchains(std::slice::from_ref(&self.swapchain))

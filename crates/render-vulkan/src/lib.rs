@@ -50,10 +50,7 @@ impl Renderer for VulkanRenderer {
         unsafe {
             self.resolution = resolution;
 
-            self.shared
-                .device
-                .device_wait_idle()
-                .context("Failed to wait for device idle")?;
+            self.shared.device.device_wait_idle().context("Failed to wait for device idle")?;
 
             self.swapchain.resize(&self.shared.device, resolution)
         }
@@ -126,25 +123,18 @@ impl Renderer for VulkanRenderer {
                 .load_op(vk::AttachmentLoadOp::CLEAR)
                 .store_op(vk::AttachmentStoreOp::STORE)
                 .clear_value(vk::ClearValue {
-                    color: vk::ClearColorValue {
-                        float32: [1.0, 0.0, 0.0, 1.0],
-                    },
+                    color: vk::ClearColorValue { float32: [1.0, 0.0, 0.0, 1.0] },
                 });
 
             let rendering_info = vk::RenderingInfo::default()
                 .render_area(vk::Rect2D {
                     offset: vk::Offset2D { x: 0, y: 0 },
-                    extent: vk::Extent2D {
-                        width: self.resolution.x,
-                        height: self.resolution.y,
-                    },
+                    extent: vk::Extent2D { width: self.resolution.x, height: self.resolution.y },
                 })
                 .layer_count(1)
                 .color_attachments(std::slice::from_ref(&attachment));
 
-            self.shared
-                .device
-                .cmd_begin_rendering(frame.command_buffer, &rendering_info);
+            self.shared.device.cmd_begin_rendering(frame.command_buffer, &rendering_info);
 
             self.shared.device.cmd_set_viewport(
                 frame.command_buffer,
@@ -164,10 +154,7 @@ impl Renderer for VulkanRenderer {
                 0,
                 &[vk::Rect2D {
                     offset: vk::Offset2D { x: 0, y: 0 },
-                    extent: vk::Extent2D {
-                        width: self.resolution.x,
-                        height: self.resolution.y,
-                    },
+                    extent: vk::Extent2D { width: self.resolution.x, height: self.resolution.y },
                 }],
             );
 
@@ -192,9 +179,7 @@ impl Renderer for VulkanRenderer {
                 vk::IndexType::UINT32,
             );
 
-            self.shared
-                .device
-                .cmd_draw_indexed(frame.command_buffer, 3, 1, 6, 0, 0);
+            self.shared.device.cmd_draw_indexed(frame.command_buffer, 3, 1, 6, 0, 0);
 
             self.shared.device.cmd_end_rendering(frame.command_buffer);
 
@@ -260,26 +245,18 @@ impl Renderer for VulkanRenderer {
             let _ = self.shared.device.device_wait_idle();
 
             for frame in &self.frames {
-                self.shared
-                    .device
-                    .free_command_buffers(self.command_pool, &[frame.command_buffer]);
+                self.shared.device.free_command_buffers(self.command_pool, &[frame.command_buffer]);
             }
 
-            self.shared
-                .device
-                .destroy_command_pool(self.command_pool, None);
+            self.shared.device.destroy_command_pool(self.command_pool, None);
 
-            self.shared
-                .allocator
-                .dispose_buffer(&self.shared.device, self.mesh_data_buffer);
+            self.shared.allocator.dispose_buffer(&self.shared.device, self.mesh_data_buffer);
 
             self.mesh_renderer.dispose(&self.shared);
 
             self.swapchain.dispose(&self.shared.device);
 
-            self.shared
-                .device
-                .destroy_semaphore(self.timeline_semaphore, None);
+            self.shared.device.destroy_semaphore(self.timeline_semaphore, None);
 
             let shared = ManuallyDrop::take(&mut self.shared);
             if let Some(shared) = Arc::into_inner(shared) {
