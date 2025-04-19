@@ -7,7 +7,6 @@ use render_common::Renderer;
 mod allocation;
 mod init;
 mod mesh;
-mod raii;
 mod swapchain;
 
 const FRAMES_IN_FLIGHT: usize = 2;
