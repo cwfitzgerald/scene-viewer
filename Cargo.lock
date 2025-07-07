@@ -88,9 +88,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.27"
+version = "1.2.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d487aa071b5f64da6f19a3e848e3578944b726ee5a4854b82172f02aa876bfdc"
+checksum = "5c1599538de2394445747c8cf7935946e3cc27e9625f889d979bfb2aaf569362"
 dependencies = [
  "shlex",
 ]
@@ -550,9 +550,9 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "sdl3"
-version = "0.14.34"
+version = "0.14.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "662e4d5d815d4a64e2720e811efe4d2bc032e8335111ef27f94acad9731e81bb"
+checksum = "b2ddc95ed108608c661c103165bb927dd353c1c7d6dabd2f9aa6d3e4d3e76a17"
 dependencies = [
  "bitflags 2.9.1",
  "lazy_static",
