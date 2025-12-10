@@ -11,7 +11,7 @@ ash = "0.38"
 ash-window = "0.13"
 bytemuck = "1.22"
 glam = "0.30"
-gpu-allocator = { version = "0.27", default-features = false }
+gpu-allocator = { version = "0.28", default-features = false }
 indicatif = "0.18.0"
 parking_lot = "0.12"
 raw-window-handle = "0.6"
