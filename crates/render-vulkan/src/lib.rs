@@ -5,6 +5,8 @@ use ash::vk;
 use glam::Vec2;
 use render_common::Renderer;
 
+use crate::swapchain::PerImageData;
+
 mod allocation;
 mod init;
 mod mesh_renderer;
@@ -89,7 +91,7 @@ impl Renderer for VulkanRenderer {
                 )
                 .context("Failed to wait for timeline semaphore")?;
 
-            let (image, image_view, semaphores) = self.swapchain.acquire()?;
+            let PerImageData { image, view: image_view, semaphores } = self.swapchain.acquire()?;
 
             if self.current_frame == 1 {
                 let mesh_data = [Vec2::new(-1.0, -1.0), Vec2::new(1.0, -1.0), Vec2::new(0.0, 1.0)];

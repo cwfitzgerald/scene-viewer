@@ -9,10 +9,11 @@ pub struct SwapchainSemaphores {
     pub present: vk::Semaphore,
 }
 
-struct PerImageData {
-    image: vk::Image,
-    view: vk::ImageView,
-    semaphores: SwapchainSemaphores,
+#[derive(Clone)]
+pub struct PerImageData {
+    pub image: vk::Image,
+    pub view: vk::ImageView,
+    pub semaphores: SwapchainSemaphores,
 }
 
 pub struct NativeSwapchain {
@@ -157,7 +158,7 @@ impl NativeSwapchain {
         Ok(())
     }
 
-    pub fn acquire(&mut self) -> anyhow::Result<(vk::Image, vk::ImageView, SwapchainSemaphores)> {
+    pub fn acquire(&mut self) -> anyhow::Result<PerImageData> {
         unsafe {
             println!("Acquiring swapchain image for index {}", self.current_image);
 
@@ -177,7 +178,7 @@ impl NativeSwapchain {
 
             assert_eq!(index, self.current_image);
 
-            Ok((data.image, data.view, data.semaphores))
+            Ok(data.clone())
         }
     }
 
