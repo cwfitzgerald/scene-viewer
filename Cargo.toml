@@ -19,7 +19,7 @@ parking_lot = "0.12"
 raw-window-handle = "0.6"
 offset-allocator = "0.2"
 rayon = "1"
-sdl3 = "0.16"
+sdl3 = "0.17"
 
 [profile.profiling]
 inherits = "release"
