@@ -10,7 +10,7 @@ anyhow = "1"
 ash = "0.38"
 ash-window = "0.13"
 bytemuck = "1.22"
-glam = "0.30"
+glam = "0.32"
 gpu-allocator = { version = "0.28", default-features = false, features = [
     "std",
 ] }
